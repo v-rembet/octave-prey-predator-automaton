@@ -1,14 +1,12 @@
-% Innit variablen
+% initialize variables and create UI
 
 clear all;
 close all;
 
-data.world = zeros(50, 100);  % 0=empty, 1=prey, 2=predator
+data.world = zeros(100, 200);  % 0=empty, 1=prey, 2=predator
 data.generation = 0;
 data.edit_dlg = true;
-
-
-% Window en buttons
+data.speed = 0.1;
 
 screensize = get(0.0, 'screensize')(3:4);
 data.fig = figure(
@@ -27,29 +25,29 @@ data.axs = axes(
 data.reset_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [21 21 200 60],
+  'position', [10 20 180 60],
   'backgroundcolor', [0.8 0.6 0.5],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', '♻   reset',
   'fontsize', 24,
-  'tooltipstring', 'Reset the world with random prey and predators',
+  'tooltipstring', 'Reset the world with random living cells',
   'callback', @click_reset
 );
-data.step_btn = uicontrol(
-  'style', 'pushbutton',
+data.play_btn = uicontrol(
+  'style', 'togglebutton',
   'units', 'pixels',
-  'position', [241 21 200 60],
+  'position', [210 20 180 60],
   'backgroundcolor', [0.5 0.9 0.5],
   'foregroundcolor', [1.0 1.0 1.0],
-  'string', '▶  ️ step',
+  'string', '▶  play',
   'fontsize', 24,
-  'tooltipstring', 'Calculate the next generation',
-  'callback', @click_step
+  'tooltipstring', 'Automatically step through generations',
+  'callback', @click_play
 );
 data.edit_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [461 21 200 60],
+  'position', [410 21 200 60],
   'backgroundcolor', [0.5 0.5 0.5],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', '✎   edit',
@@ -61,7 +59,7 @@ data.edit_btn = uicontrol(
 data.prey_title_lbl = uicontrol(
   'style', 'text',
   'units', 'pixels',
-  'position', [691 46 100 28],
+  'position', [610 46 100 28],
   'backgroundcolor', [0.1 0.1 0.5],
   'foregroundcolor', [0.5 0.7 1.0],
   'string', '🐇 Prey',
@@ -72,7 +70,7 @@ data.prey_title_lbl = uicontrol(
 data.prey_lbl = uicontrol(
   'style', 'text',
   'units', 'pixels',
-  'position', [799 46 110 28],
+  'position', [760 46 110 28],
   'backgroundcolor', [0.1 0.1 0.5],
   'foregroundcolor', [0.6 0.8 1.0],
   'string', '0',
@@ -83,7 +81,7 @@ data.prey_lbl = uicontrol(
 data.pred_title_lbl = uicontrol(
   'style', 'text',
   'units', 'pixels',
-  'position', [691 14 100 28],
+  'position', [610 14 100 28],
   'backgroundcolor', [0.1 0.1 0.5],
   'foregroundcolor', [1.0 0.5 0.5],
   'string', '🐺 Pred',
@@ -94,19 +92,29 @@ data.pred_title_lbl = uicontrol(
 data.pred_lbl = uicontrol(
   'style', 'text',
   'units', 'pixels',
-  'position', [799 14 110 28],
+  'position', [760 14 110 28],
   'backgroundcolor', [0.1 0.1 0.5],
   'foregroundcolor', [1.0 0.6 0.6],
   'string', '0',
   'fontsize', 14,
   'horizontalalignment', 'left'
 );
-
+data.speed_btn = uicontrol(
+  'style', 'pushbutton',
+  'units', 'pixels',
+  'position', [810 20 180 60],
+  'backgroundcolor', [0.6 0.8 0.9],
+  'foregroundcolor', [1.0 1.0 1.0],
+  'string', 'speed up',
+  'fontsize', 24,
+  'tooltipstring', 'Increase simulation speed',
+  'callback', @click_speed
+);
 data.save_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [1161 21 200 60],
-  'backgroundcolor', [0.8 0.8 0.6],
+  'position', [1010 20 180 60],
+  'backgroundcolor', [0.6 0.6 1.0],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', '📥   save',
   'fontsize', 24,
@@ -116,22 +124,36 @@ data.save_btn = uicontrol(
 data.load_btn = uicontrol(
   'style', 'pushbutton',
   'units', 'pixels',
-  'position', [1381 21 200 60],
-  'backgroundcolor', [0.8 0.8 0.6],
+  'position', [1210 20 180 60],
+  'backgroundcolor', [0.6 0.6 1.0],
   'foregroundcolor', [1.0 1.0 1.0],
   'string', '📤   load',
   'fontsize', 24,
   'tooltipstring', 'Load the world from a file',
   'callback', @click_load
 );
-data.img = imagesc(data.axs, data.world, [0.0 2.0]);
+data.help_btn = uicontrol(
+  'style', 'pushbutton',
+  'units', 'pixels',
+  'position', [1410 20 180 60],
+  'backgroundcolor', [0.8 0.8 0.4],
+  'foregroundcolor', [1.0 1.0 1.0],
+  'string', 'ℹ️   help',
+  'fontsize', 24,
+  'tooltipstring', 'Open a browser with background information',
+  'callback', @click_help
+);
+data.img = imagesc(data.axs, data.world, [0.0 1.0]);
 axis(data.axs, 'off');
 
-% gui data
+
+
+% store shared data
 guidata(data.fig, data);
 
 
-% callback functions
+
+% define callback functions
 
 function update_meters(source, data)
   n_prey = sum(data.world(:) == 1);
@@ -153,14 +175,22 @@ function click_reset(source, event)
   endif
 endfunction
 
-function click_step(source, event) %op het moment een placeholder want ik weet nog niet hoe de regels gaan doen
+function click_play(source, event)
   data = guidata(source);
+  % start the simulation
+  set(source,'string', 'stop');
+
+  % ... regels ...
+
+  % stop de simulation
+  pause(data.speed);
+
   set(data.img, 'cdata', data.world);
   update_meters(source, data);
   guidata(source, data);
 endfunction
 
-function click_edit(source, event) %1x klikken = prey 2 keer = pred
+function click_edit(source, event) %1x click = prey; 2x clicks = predator
   data = guidata(source);
   if data.edit_dlg
     helpdlg("Left click: cycle cell (empty -> prey -> predator -> empty).\nRight click to stop.", 'Entering editing mode');
@@ -183,6 +213,12 @@ function click_edit(source, event) %1x klikken = prey 2 keer = pred
     guidata(source, data);
   endwhile
   set(data.edit_btn, 'backgroundcolor', oldcolor);
+endfunction
+
+function click_speed(source, event)
+  data = guidata(source);
+  data.speed = max(data.speed - 0.02, 0.01); % decrease pause duration, but not bellow 0.01
+  guidata(source, data);
 endfunction
 
 function click_save(source, event)
@@ -217,4 +253,9 @@ function click_load(source, event)
     update_meters(source, data);
     guidata(source, data);
   endif
+endfunction
+
+function click_help(source, event)
+  % Open browser window with wiki page
+  web("http://langers.nl/wiki/doku.php?id=predator_prey_2026:welkom");
 endfunction
